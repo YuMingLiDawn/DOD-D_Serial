@@ -1,0 +1,27 @@
+{
+  "cmake.useCMakePresets": "always",
+  "cmake.sourceDirectory": "${workspaceFolder}",
+  "cmake.configureOnOpen": true,
+  "cmake.exportCompileCommandsFile": true,
+  "cmake.buildBeforeRun": true,
+  "cmake.saveBeforeBuild": true,
+  "cmake.showConfigureWithDebuggerNotification": false,
+  "C_Cpp.default.configurationProvider": "ms-vscode.cmake-tools",
+  "C_Cpp.default.cppStandard": "c++17",
+  "C_Cpp.default.includePath": ["${workspaceFolder}/**"],
+  "files.associations": {
+    "*.qml": "qml",
+    "*.qmltypes": "qml",
+    "*.qrc": "xml"
+  },
+  "files.exclude": {
+    "**/build": true
+  },
+  "search.exclude": {
+    "**/build": true
+  },
+  "editor.formatOnSave": true,
+  "[qml]": {
+    "editor.formatOnSave": false
+  }
+}

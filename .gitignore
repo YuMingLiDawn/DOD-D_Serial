@@ -1,0 +1,18 @@
+# 日志输出（运行期生成）
+logs/
+
+# 构建产物
+build/
+build-*/
+out/
+CMakeFiles/
+CMakeCache.txt
+compile_commands.json
+
+# IDE / 本机
+.vs/
+.vscode/ipch/
+CMakeUserPresets.json
+*.user
+.DS_Store
+third_party

@@ -1,0 +1,24 @@
+{
+  "configurations": [
+    {
+      "name": "Qt6 (CMake Tools)",
+      "configurationProvider": "ms-vscode.cmake-tools",
+      "includePath": [
+        "${workspaceFolder}/**",
+        "${env:QTDIR}/include/**",
+        "${env:QT_ROOT}/include/**"
+      ],
+      "defines": [
+        "QT_CORE_LIB",
+        "QT_GUI_LIB",
+        "QT_WIDGETS_LIB",
+        "QT_QML_LIB",
+        "QT_QUICK_LIB",
+        "QT_QUICKWIDGETS_LIB"
+      ],
+      "cStandard": "c17",
+      "cppStandard": "c++17"
+    }
+  ],
+  "version": 4
+}
