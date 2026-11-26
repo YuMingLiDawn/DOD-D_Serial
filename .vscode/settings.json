@@ -12,8 +12,12 @@
   "files.associations": {
     "*.qml": "qml",
     "*.qmltypes": "qml",
-    "*.qrc": "xml"
+    "*.qrc": "xml",
+    "qmldir": "qmldir"
   },
+  // 注意：不要给 qt-qml.qmlls.additionalImportPaths 加 "${workspaceFolder}/Qml"，
+  // qmlls 会把该目录下的模块标成 qrc:/<目录名>，反而报 "missing import"。
+  // 工程里用目录导入 import "Common" 即可，qmlls 与运行时都能解析。
   "files.exclude": {
     "**/build": true
   },

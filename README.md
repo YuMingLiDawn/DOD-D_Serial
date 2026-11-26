@@ -8,7 +8,17 @@ QWidget 主窗承载一个 `QQuickWidget`；QML 走 qrc 编进 exe；Model 与�
 
 ```text
 DOD-D_Serial/
-├── CMakeLists.txt          # 唯一构建入口（分层目录已加入 include path）
+├── CMakeLists.txt          # 只做入口 + 顺序编排（真正的配置在 cmake/ 下）
+├── cmake/                  # 构建脚本拆成 9 个子文件
+│   ├── ProjectConfig.cmake        #   输出目录 / C++17 / MOC-UIC-RCC
+│   ├── SourceFilesConfig.cmake    #   源文件与 include 目录清单
+│   ├── Qt5Config.cmake            #   定位 Qt5（QTDIR / 常见安装目录）
+│   ├── ThirdPartyConfig.cmake     #   第三方依赖（spdlog / Threads）
+│   ├── TargetConfig.cmake         #   可执行目标 + 平台属性
+│   ├── LinkLibrariesConfig.cmake  #   链接依赖
+│   ├── QmlConfig.cmake            #   QML(qrc) 资源依赖
+│   ├── PackageConfig.cmake        #   run / windeployqt / create-package
+│   └── Summary.cmake              #   配置结论输出
 ├── CMakePresets.json       # debug / release 两个 preset
 ├── main.cpp                # 入口：注册 QML 类型 + 登记全局服务 + 起窗口
 ├── App/                    # 应用层：窗口与全局上下文
@@ -23,9 +33,12 @@ DOD-D_Serial/
 │   └── Log.cpp             #   唯一依赖 spdlog 的文件
 ├── third_party/spdlog/     # 内置依赖（头文件），clone 即可编译
 ├── Qml/                    # 视图层
-│   ├── Qml.qrc             #   资源清单（prefix=/Qml）
-│   ├── Main.qml            #   默认页面
-│   └── SerialDemo.qml      #   Model + 服务用法演示页
+│   ├── Qml.qrc             #   资源清单（prefix=/ → qrc:/Main.qml、qrc:/Common/…）
+│   ├── Main.qml            #   默认页面（GeneralCombox 用法演示）
+│   ├── SerialDemo.qml      #   Model + 服务 + 网卡演示页
+│   └── Common/             #   qmldir 模块：import Common 1.0
+│       ├── qmldir
+│       └── GeneralCombox.qml
 ├── .clang-format
 └── .vscode/                # tasks / launch / settings
 ```
@@ -38,7 +51,8 @@ DOD-D_Serial/
 | `Utility/` | 日志、配置等基础设施                     | 被各层使用                         |
 | `Qml/`     | QML 页面与组件                           | 通过类型/上下文访问 Model、Service |
 
-新增一层（例如 `Protocol/`、`Utility/`）时只需要：建目录 → 在 `CMakeLists.txt` 的源文件列表和 `target_include_directories` 里各加一行。
+新增一层（例如 `Protocol/`）时：建目录 → 在 `cmake/SourceFilesConfig.cmake` 的源文件清单和 include 目录里各加一行。
+新增第三方库 → 改 `cmake/ThirdPartyConfig.cmake`；加打包步骤 → 改 `cmake/PackageConfig.cmake`。
 
 ---
 
@@ -73,7 +87,7 @@ sequenceDiagram
     A->>E: 构造 QQuickWidget（引擎诞生）
     A->>C: contextMap()
     A->>E: rootContext()->setContextProperty(...) // 必须在 setSource 前
-    A->>E: setSource("qrc:/Qml/Main.qml")
+    A->>E: setSource("qrc:/Main.qml")
 ```
 
 要点：
@@ -85,7 +99,65 @@ sequenceDiagram
 
 ---
 
-## 三、日志（spdlog + 可替换门面）
+## 三、QML 组件模块（qmldir）
+
+`Qml/Common/` 是一个可复用组件目录，用 `qmldir` 声明成一个模块，页面里直接 `import`：
+
+```text
+Qml/
+├── Main.qml                 import "Common"  →  GeneralCombox { }
+├── Common/
+│   ├── qmldir               module Common
+│   └── GeneralCombox.qml    ComboBox 封装（selectedValue / hoveredIndex / 颜色属性…）
+└── Qml.qrc                  把 qmldir 也登记进去
+```
+
+`Qml/Common/qmldir`：
+
+```text
+module Common
+
+GeneralCombox 1.0 ./GeneralCombox.qml
+```
+
+两种 import 写法都靠这个 `qmldir`：
+
+| 写法                                    | 能用的前提                                                 | 说明                                                                                      |
+| --------------------------------------- | ---------------------------------------------------------- | ----------------------------------------------------------------------------------------- |
+| `import "Common"`（目录导入，**推荐**） | 模块目录与使用它的 QML 同级                                | qmlls 与运行时都正常；qmldir 里的 `module` 行可不用                                       |
+| `import Common 1.0`（命名模块）         | 引擎 `addImportPath("qrc:/")`，使 `Common` → `qrc:/Common` | 运行时可用；但 **Qt5 + qrc 下 qmlls 会误报** `GeneralCombox missing import "qrc:/Common"` |
+
+所以本项目统一用目录导入，同时保留 `addImportPath("qrc:/")`（以后真需要命名模块时直接可用）。
+
+三件事必须同时成立，否则会报 `is not a type` / `module is not installed`：
+
+| 环节     | 做法                                                             |
+| -------- | ---------------------------------------------------------------- |
+| 模块声明 | `qmldir` 里写 `module Common`                                    |
+| 组件登记 | `类型名 版本 ./文件名`，类型名可与文件名不同                     |
+| 可见性   | 目录导入靠相对位置；命名模块靠 `addImportPath` + qrc 中的 qmldir |
+
+注意：`qmldir` 本身也要放进 `Qml.qrc`，否则运行时它在 qrc 里不存在。
+
+页面里的用法：
+
+```qml
+import "Common"
+
+GeneralCombox {
+    width: 180
+    height: 28
+    model: ["ttyUSB0", "ttyUSB1", "ttyS0"]
+    pixelSize: 13
+}
+```
+
+新增一个通用组件：把文件放进 `Qml/Common/`，在 `qmldir` 里加一行，再在 `Qml.qrc` 里加一行。
+子目录也可以自成模块（如 `Common/GeneralDialog/qmldir` → `module Common.GeneralDialog` → `import Common.GeneralDialog 1.0`）。
+
+---
+
+## 四、日志（spdlog + 可替换门面）
 
 业务侧只有一个入口：
 
@@ -124,7 +196,7 @@ LOG_ERROR("加载 QML 失败: {}", url);
 
 ---
 
-## 四、构建与运行
+## 五、构建与运行
 
 ```bash
 cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
@@ -140,7 +212,7 @@ cmake --build build --target create-package    # 打包 zip
 
 ---
 
-## 五、VS Code 怎么点
+## 六、VS Code 怎么点
 
 | 想做的事         | 操作                                              |
 | ---------------- | ------------------------------------------------- |
@@ -151,7 +223,7 @@ cmake --build build --target create-package    # 打包 zip
 
 ---
 
-## 六、多平台差异
+## 七、多平台差异
 
 | 平台    | Qt 运行库                             | 包                       |
 | ------- | ------------------------------------- | ------------------------ |
@@ -163,7 +235,7 @@ cmake --build build --target create-package    # 打包 zip
 
 ---
 
-## 七、常见问题
+## 八、常见问题
 
 **0. 点按钮没反应 / 只报错**
 
@@ -193,7 +265,7 @@ cmake --build build --target create-package    # 打包 zip
 
 ---
 
-## 八、速查表
+## 九、速查表
 
 ```bash
 cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
@@ -202,12 +274,13 @@ cmake --build build --target run
 cmake --build build --target create-package
 ```
 
-| 想加什么        | 改哪里                                                                       |
-| --------------- | ---------------------------------------------------------------------------- |
-| 新 Model        | `Model/` 建类 → `main.cpp` 里 `qmlRegisterType` → `CMakeLists.txt` 加源文件  |
-| 新全局服务      | `Service/` 建单例 → `main.cpp` 里 `setContext("名字", ...)` → QML 直接用名字 |
-| 新 QML 页面     | 丢进 `Qml/` → `Qml/Qml.qrc` 加一行                                           |
-| 新分层目录      | 建目录 → CMake 的源文件列表 + `target_include_directories` 各加一行          |
-| 打日志          | `LOG_INFO("值={}", v)`；头文件加 `#include "Log.h"`                          |
-| 调日志级别/目录 | `main.cpp` 里的 `Log::Options`                                               |
-| 看日志          | 运行目录下 `logs/DOD-D_Serial.log`                                           |
+| 想加什么        | 改哪里                                                                            |
+| --------------- | --------------------------------------------------------------------------------- |
+| 新 Model        | `Model/` 建类 → `main.cpp` 里 `qmlRegisterType` → `CMakeLists.txt` 加源文件       |
+| 新全局服务      | `Service/` 建单例 → `main.cpp` 里 `setContext("名字", ...)` → QML 直接用名字      |
+| 新 QML 页面     | 丢进 `Qml/` → `Qml/Qml.qrc` 加一行                                                |
+| 新分层目录      | 建目录 → `cmake/SourceFilesConfig.cmake` 的源文件清单 + include 目录各加一行      |
+| 打日志          | `LOG_INFO("值={}", v)`；头文件加 `#include "Log.h"`                               |
+| 调日志级别/目录 | `main.cpp` 里的 `Log::Options`                                                    |
+| 新通用组件      | 放进 `Qml/Common/` → `qmldir` 加一行 → `Qml.qrc` 加一行，页面 `import Common 1.0` |
+| 看日志          | 运行目录下 `logs/DOD-D_Serial.log`                                                |

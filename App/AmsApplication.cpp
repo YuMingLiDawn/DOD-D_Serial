@@ -1,9 +1,11 @@
 #include "AmsApplication.h"
 
 #include "ApplicationContext.h"
+#include "ImageColorizer/ImageColorizer.h"
 #include "Log.h"
 
 #include <QQmlContext>
+#include <QQmlEngine>
 #include <QQmlError>
 #include <QQuickWidget>
 #include <QUrl>
@@ -16,11 +18,11 @@ AmsApplication::AmsApplication(QWidget* parent)
     resize(800, 600);
 
     m_quickWidget->setResizeMode(QQuickWidget::SizeRootObjectToView);
-
-    // 顺序很重要：先把全局对象注入 rootContext，再 setSource
+    m_quickWidget->engine()->addImportPath(QStringLiteral("qrc:/"));
+    m_quickWidget->engine()->addImageProvider(QStringLiteral("customImage"), ImageColorizer::instance());
     injectContextProperties();
 
-    const QUrl qmlUrl(QStringLiteral("qrc:/Qml/Main.qml"));
+    const QUrl qmlUrl(QStringLiteral("qrc:/Main.qml"));
     m_quickWidget->setSource(qmlUrl);
 
     if (m_quickWidget->status() == QQuickWidget::Error) {

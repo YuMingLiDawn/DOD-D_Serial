@@ -1,5 +1,14 @@
+/***
+ * @Author: dawn 1964173012@qq.com
+ * @Date: 2026-11-26 17:00:26
+ * @LastEditors: dawn 1964173012@qq.com
+ * @LastEditTime: 2026-11-26 19:03:45
+ * @FilePath: /DOD-D_Serial/App/ApplicationContext.cpp
+ * @Description:
+ * @
+ * @Copyright (c) 2026 by AmsAudio Li YuMing, All Rights Reserved.
+ */
 #include "ApplicationContext.h"
-
 #include "Log.h"
 
 ApplicationContext& ApplicationContext::instance()

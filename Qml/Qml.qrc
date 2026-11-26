@@ -1,6 +1,7 @@
 <RCC>
-    <qresource prefix="/Qml">
+    <qresource prefix="/">
         <file>Main.qml</file>
-        <file>SerialDemo.qml</file>
+        <file>Common/qmldir</file>
+        <file>Common/GeneralCombox.qml</file>
     </qresource>
 </RCC>

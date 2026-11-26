@@ -11,8 +11,8 @@
 #include "AmsApplication.h"
 #include "ApplicationContext.h"
 #include "Log.h"
-#include "SerialPortModel.h"
 #include "SerialService.h"
+#include "Model/NicModel/NicModel.h"
 #include "Service/NicSearch/NicSearch.h"
 
 #include <QApplication>
@@ -26,8 +26,7 @@ namespace
     void registerQmlTypes()
     {
         // 命名空间 DodModel，版本 1.0；QML 侧 import DodModel 1.0
-        qmlRegisterType<SerialPortModel>("DodModel", 1, 0, "SerialPortModel");
-        qmlRegisterType<NicSearch>("DodModel", 1, 0, "NicSearch");
+         qmlRegisterType<NicModel>("DodModel", 1, 0, "NicModel");
 
         // 只暴露枚举/常量、不允许 QML 创建时用这两个：
         //   qmlRegisterUncreatableType<T>("DodModel", 1, 0, "T", "仅用于枚举");
@@ -38,6 +37,7 @@ namespace
     void setupApplicationContext()
     {
         ApplicationContext::instance().setContext("serialService", &SerialService::instance());
+        ApplicationContext::instance().setContext("nicSearch", &NicSearch::instance());
 
         // 单例也可以改成「类型」方式注册（QML 里不需注入上下文属性）：
         //   qmlRegisterSingletonInstance<SerialService>("DodModel", 1, 0, "SerialService",
@@ -70,6 +70,7 @@ int main(int argc, char* argv[])
 
     AmsApplication window;
     window.setWindowTitle(QStringLiteral("AMS"));
+    window.resize(1280, 800);
     window.show();
 
     const int exitCode = app.exec();
