@@ -25,7 +25,7 @@ endif()
 add_custom_command(
   TARGET ${PROJECT_NAME}
   POST_BUILD
-  COMMAND ${CMAKE_COMMAND} -E copy_directory "${PROJECT_SOURCE_DIR}/Qml/res"
+  COMMAND ${CMAKE_COMMAND} -E copy_directory "${PROJECT_SOURCE_DIR}/Res"
           "$<TARGET_FILE_DIR:${PROJECT_NAME}>/res"
   COMMENT "复制图标资源到 $<TARGET_FILE_DIR:${PROJECT_NAME}>/res"
   VERBATIM)

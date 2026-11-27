@@ -58,9 +58,9 @@ int main(int argc, char* argv[])
     registerQmlTypes();
     setupApplicationContext();
 
-    UdpReceiver udpReceiver;
-    udpReceiver.startListening();
-    ApplicationContext::instance().setContext("udpReceiver", &udpReceiver);
+    // UdpReceiver udpReceiver;
+    // udpReceiver.startListening();
+    // ApplicationContext::instance().setContext("udpReceiver", &udpReceiver);
 
     // ============================================================================
     // 【临时联调】设置环境变量 DOD_ULXD_HOST 后，启动即连一次 ULX-D 接收机
@@ -106,14 +106,14 @@ int main(int argc, char* argv[])
     }
 
     AmsApplication window;
-    QString appTitle = QStringLiteral("WIRELESS TERMINAL CONSOLE") + QStringLiteral(" ") + QStringLiteral("WTC-3") + QStringLiteral(" ") + QStringLiteral("无线终端控制中心");
+    QString        appTitle = QStringLiteral("WIRELESS TERMINAL CONSOLE") + QStringLiteral(" ") + QStringLiteral("WTC-3") + QStringLiteral(" ") + QStringLiteral("无线终端控制中心");
     window.setWindowTitle(appTitle);
     window.resize(1280, 800);
     window.show();
 
     const int exitCode = app.exec();
     LOG_INFO("应用退出, code={}", exitCode);
-    udpReceiver.stop();
+    // udpReceiver.stop();
     Log::shutdown();
     return exitCode;
 }
