@@ -1,7 +1,7 @@
 {
   "configurations": [
     {
-      "name": "Qt6 (CMake Tools)",
+      "name": "Qt5 (CMake Tools)",
       "configurationProvider": "ms-vscode.cmake-tools",
       "includePath": [
         "${workspaceFolder}/**",

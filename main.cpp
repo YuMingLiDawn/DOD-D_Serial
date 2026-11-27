@@ -8,7 +8,7 @@
  * @
  * @Copyright (c) 2026 by AmsAudio Li YuMing, All Rights Reserved.
  */
-#include "AmsApplication.h"
+#include "App/AmsApplication.h"
 #include "ApplicationContext.h"
 #include "Config.h" // 由 CMake 每次编译生成：版本 / git / 构建时间
 #include "Log.h"

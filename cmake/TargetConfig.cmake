@@ -7,6 +7,10 @@ add_executable(${PROJECT_NAME} ${PROJECT_SOURCES})
 
 target_include_directories(${PROJECT_NAME} PRIVATE ${PROJECT_INCLUDE_DIRS})
 
+if(MSVC)
+  target_compile_options(${PROJECT_NAME} PRIVATE /utf-8)
+endif()
+
 # 图标资源（svg/png）：从 Qml/res 拷到 exe 同级 res/，方便现场替换图标 （ImageColorizer 优先读磁盘，找不到才回退
 # qrc）
 #

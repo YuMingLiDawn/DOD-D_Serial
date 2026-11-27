@@ -2,7 +2,7 @@
   "version": "2.0.0",
   "tasks": [
     {
-      "label": "cmake: configure (debug)",
+      "label": "CMake: 配置 Debug",
       "type": "process",
       "command": "cmake",
       "args": [
@@ -16,10 +16,13 @@
       "options": {
         "cwd": "${workspaceFolder}"
       },
-      "problemMatcher": ["$gcc", "$msCompile"]
+      "problemMatcher": [
+        "$gcc",
+        "$msCompile"
+      ]
     },
     {
-      "label": "cmake: build (debug)",
+      "label": "CMake: 构建 Debug",
       "type": "process",
       "command": "cmake",
       "args": [
@@ -31,15 +34,18 @@
       "options": {
         "cwd": "${workspaceFolder}"
       },
-      "dependsOn": "cmake: configure (debug)",
+      "dependsOn": "CMake: 配置 Debug",
       "group": {
         "kind": "build",
         "isDefault": true
       },
-      "problemMatcher": ["$gcc", "$msCompile"]
+      "problemMatcher": [
+        "$gcc",
+        "$msCompile"
+      ]
     },
     {
-      "label": "cmake: run (debug)",
+      "label": "CMake: 运行 Debug",
       "type": "process",
       "command": "cmake",
       "args": [
@@ -53,11 +59,14 @@
       "options": {
         "cwd": "${workspaceFolder}"
       },
-      "dependsOn": "cmake: build (debug)",
-      "problemMatcher": ["$gcc", "$msCompile"]
+      "dependsOn": "CMake: 构建 Debug",
+      "problemMatcher": [
+        "$gcc",
+        "$msCompile"
+      ]
     },
     {
-      "label": "cmake: configure (release)",
+      "label": "CMake: 配置 Release",
       "type": "process",
       "command": "cmake",
       "args": [
@@ -70,10 +79,13 @@
       "options": {
         "cwd": "${workspaceFolder}"
       },
-      "problemMatcher": ["$gcc", "$msCompile"]
+      "problemMatcher": [
+        "$gcc",
+        "$msCompile"
+      ]
     },
     {
-      "label": "cmake: build (release)",
+      "label": "CMake: 构建 Release",
       "type": "process",
       "command": "cmake",
       "args": [
@@ -85,12 +97,36 @@
       "options": {
         "cwd": "${workspaceFolder}"
       },
-      "dependsOn": "cmake: configure (release)",
+      "dependsOn": "CMake: 配置 Release",
       "group": {
         "kind": "build",
         "isDefault": false
       },
-      "problemMatcher": ["$gcc", "$msCompile"]
+      "problemMatcher": [
+        "$gcc",
+        "$msCompile"
+      ]
+    },
+    {
+      "label": "CMake: 运行 Release",
+      "type": "process",
+      "command": "cmake",
+      "args": [
+        "--build",
+        "${workspaceFolder}/build/release",
+        "--config",
+        "Release",
+        "--target",
+        "run"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "dependsOn": "CMake: 构建 Release",
+      "problemMatcher": [
+        "$gcc",
+        "$msCompile"
+      ]
     },
     {
       "label": "打包 Release（一键 zip）",
@@ -107,19 +143,78 @@
       "options": {
         "cwd": "${workspaceFolder}"
       },
-      "dependsOn": "cmake: build (release)",
+      "dependsOn": "CMake: 构建 Release",
       "group": {
         "kind": "build",
         "isDefault": false
       },
-      "problemMatcher": ["$gcc", "$msCompile"],
+      "problemMatcher": [
+        "$gcc",
+        "$msCompile"
+      ],
       "detail": "configure+构建 Release → 部署 Qt 运行库（Windows 用 windeployqt）→ 生成 build/release/DOD-D_Serial-<版本>-<平台>-<架构>.zip"
+    },
+    {
+      "label": "打包 Windows Debug 安装程序（仅开发机）",
+      "type": "process",
+      "command": "cmake",
+      "args": [
+        "--build",
+        "${workspaceFolder}/build/debug",
+        "--config",
+        "Debug",
+        "--target",
+        "create-installer"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "dependsOn": "CMake: 构建 Debug",
+      "group": {
+        "kind": "build",
+        "isDefault": false
+      },
+      "problemMatcher": [
+        "$gcc",
+        "$msCompile"
+      ],
+      "detail": "生成 Debug 安装程序；目标开发机须安装对应的 MSVC 调试运行库，不可用于发布。"
+    },
+    {
+      "label": "打包 Windows Release 安装程序（发布）",
+      "type": "process",
+      "command": "cmake",
+      "args": [
+        "--build",
+        "${workspaceFolder}/build/release",
+        "--config",
+        "Release",
+        "--target",
+        "create-installer"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "dependsOn": "CMake: 构建 Release",
+      "group": {
+        "kind": "build",
+        "isDefault": false
+      },
+      "problemMatcher": [
+        "$gcc",
+        "$msCompile"
+      ],
+      "detail": "构建 Release 并生成带 Qt 和 MSVC 运行库的 Windows 安装程序；需要 NSIS。"
     },
     {
       "label": "cmake: distclean",
       "type": "process",
       "command": "cmake",
-      "args": ["-E", "remove_directory", "${workspaceFolder}/build"],
+      "args": [
+        "-E",
+        "remove_directory",
+        "${workspaceFolder}/build"
+      ],
       "options": {
         "cwd": "${workspaceFolder}"
       },

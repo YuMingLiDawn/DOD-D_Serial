@@ -11,9 +11,18 @@
       "stopAtEntry": false,
       "externalConsole": false,
       "environment": [
-        { "name": "DOD_ULXD_HOST", "value": "192.168.3.123" },
-        { "name": "DOD_ULXD_FREQ", "value": "630000" },
-        { "name": "DOD_ULXD_CHANNEL", "value": "1" }
+        {
+          "name": "DOD_ULXD_HOST",
+          "value": "192.168.3.123"
+        },
+        {
+          "name": "DOD_ULXD_FREQ",
+          "value": "630000"
+        },
+        {
+          "name": "DOD_ULXD_CHANNEL",
+          "value": "1"
+        }
       ],
       "MIMode": "gdb",
       "miDebuggerPath": "/usr/bin/gdb",
@@ -29,7 +38,7 @@
           "ignoreFailures": true
         }
       ],
-      "preLaunchTask": "cmake: build (debug)"
+      "preLaunchTask": "CMake: 构建 Debug"
     },
     {
       "name": "调试 DOD-D_Serial (macOS / lldb)",
@@ -41,27 +50,97 @@
       "stopAtEntry": false,
       "externalConsole": false,
       "environment": [
+        {
+          "name": "DOD_ULXD_HOST",
+          "value": "192.168.3.123"
+        },
+        {
+          "name": "DOD_ULXD_FREQ",
+          "value": "630000"
+        },
+        {
+          "name": "DOD_ULXD_CHANNEL",
+          "value": "1"
+        }
+      ],
+      "MIMode": "lldb",
+      "preLaunchTask": "CMake: 构建 Debug"
+    },
+    {
+      "name": "调试 DOD-D_Serial (Windows / MSVC / Debug)",
+      "type": "cppvsdbg",
+      "request": "launch",
+      "program": "${workspaceFolder}/build/debug/bin/Debug/DOD-D_Serial.exe",
+      "args": [],
+      "cwd": "${workspaceFolder}/build/debug/bin/Debug",
+      "environment": [
         { "name": "DOD_ULXD_HOST", "value": "192.168.3.123" },
         { "name": "DOD_ULXD_FREQ", "value": "630000" },
         { "name": "DOD_ULXD_CHANNEL", "value": "1" }
       ],
-      "MIMode": "lldb",
-      "preLaunchTask": "cmake: build (debug)"
+      "preLaunchTask": "CMake: 构建 Debug"
     },
     {
-      "name": "调试 DOD-D_Serial (Windows / MSVC)",
+      "name": "调试 DOD-D_Serial (Windows / MSVC / Release)",
       "type": "cppvsdbg",
       "request": "launch",
-      "program": "${command:cmake.launchTargetPath}",
+      "program": "${workspaceFolder}/build/release/bin/Release/DOD-D_Serial.exe",
       "args": [],
-      "cwd": "${command:cmake.launchTargetDirectory}",
+      "cwd": "${workspaceFolder}/build/release/bin/Release",
+      "environment": [
+        { "name": "DOD_ULXD_HOST", "value": "192.168.3.123" },
+        { "name": "DOD_ULXD_FREQ", "value": "630000" },
+        { "name": "DOD_ULXD_CHANNEL", "value": "1" }
+      ],
+      "preLaunchTask": "CMake: 构建 Release"
+    },
+    {
+      "name": "打包 Windows Debug 安装程序（仅开发机）",
+      "type": "cppvsdbg",
+      "request": "launch",
+      "program": "${env:SystemRoot}\\System32\\cmd.exe",
+      "args": [
+        "/d",
+        "/c",
+        "cmake",
+        "--build",
+        "${workspaceFolder}/build/debug",
+        "--config",
+        "Debug",
+        "--target",
+        "create-installer"
+      ],
+      "cwd": "${workspaceFolder}",
       "console": "integratedTerminal",
-      "env": {
-        "DOD_ULXD_HOST": "192.168.3.123",
-        "DOD_ULXD_FREQ": "630000",
-        "DOD_ULXD_CHANNEL": "1"
-      },
-      "preLaunchTask": "cmake: build (debug)"
+      "preLaunchTask": "CMake: 配置 Debug"
+    },
+    {
+      "name": "打包 Windows Release 安装程序（发布）",
+      "type": "cppvsdbg",
+      "request": "launch",
+      "program": "${env:SystemRoot}\\System32\\cmd.exe",
+      "args": [
+        "/d",
+        "/c",
+        "cmake",
+        "--build",
+        "${workspaceFolder}/build/release",
+        "--config",
+        "Release",
+        "--target",
+        "create-installer"
+      ],
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal",
+      "preLaunchTask": "CMake: 配置 Release"
+    },
+    {
+      "type": "cmake",
+      "request": "launch",
+      "name": "Debug portfile(s)",
+      "cmakeDebugType": "external",
+      "pipeName": "\\\\.\\pipe\\vcpkg_ext_portfile_dbg",
+      "preLaunchTask": "Debug vcpkg commands"
     }
   ]
 }

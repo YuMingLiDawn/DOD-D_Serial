@@ -15,7 +15,11 @@ if(APPLE)
   file(GLOB _qt_guessed_dirs "$ENV{HOME}/Qt5*/*/clang_64"
        "$ENV{HOME}/Qt/5.*/clang_64")
 elseif(WIN32)
-  file(GLOB _qt_guessed_dirs "C:/Qt/Qt5*/*/msvc*_64" "C:/Qt/5.*/msvc*_64")
+  if(MSVC)
+    file(GLOB _qt_guessed_dirs "C:/Qt/Qt5*/*/msvc*_64" "C:/Qt/5.*/msvc*_64")
+  elseif(MINGW)
+    file(GLOB _qt_guessed_dirs "C:/Qt/Qt5*/*/mingw*_64" "C:/Qt/5.*/mingw*_64")
+  endif()
 else()
   file(GLOB _qt_guessed_dirs "$ENV{HOME}/Qt5*/*/gcc_64"
        "$ENV{HOME}/Qt/5.*/gcc_64")
@@ -26,7 +30,7 @@ if(_qt_guessed_dirs)
   list(APPEND CMAKE_PREFIX_PATH ${_qt_guessed_dirs})
 endif()
 
-find_package(Qt5 5.12 REQUIRED COMPONENTS Core Widgets Quick QuickWidgets Svg
+find_package(Qt5 5.14 REQUIRED COMPONENTS Core Widgets Quick QuickWidgets Svg
                                           Network)
 
 message(STATUS "已找到 Qt ${Qt5_VERSION}（${Qt5_DIR}）")

@@ -31,7 +31,7 @@ DOD-D_Serial/
 ├── Utility/                # 基础设施
 │   ├── Log.h               #   日志门面（业务只用 LOG_xxx 宏）
 │   └── Log.cpp             #   唯一依赖 spdlog 的文件
-├── third_party/spdlog/     # 内置依赖（头文件），clone 即可编译
+├── third_party/spdlog/     # 可选的本地 spdlog，未提供时查找系统包或下载
 ├── Qml/                    # 视图层
 │   ├── Qml.qrc             #   资源清单（prefix=/ → qrc:/Main.qml、qrc:/Common/…）
 │   ├── Main.qml            #   默认页面（GeneralCombox 用法演示）
@@ -170,7 +170,7 @@ LOG_ERROR("加载 QML 失败: {}", url);
 | -------------------- | ---------------------------------------------------------------- |
 | `Utility/Log.h`      | 门面：`LOG_*` 宏、级别、初始化选项；业务只 include 它            |
 | `Utility/Log.cpp`    | **唯一**出现 spdlog 符号的文件：双 sink + Qt 消息转发 + 定时刷盘 |
-| `third_party/spdlog` | 内置头文件依赖，**别人拉下仓库直接编译**，不用联网/装包          |
+| `third_party/spdlog` | 可选的本地头文件依赖；否则查找系统包或下载 spdlog                 |
 
 行为约定：
 
@@ -198,17 +198,44 @@ LOG_ERROR("加载 QML 失败: {}", url);
 
 ## 五、构建与运行
 
-```bash
-cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
-cmake --build build -j8
-cmake --build build --target run               # 运行
-cmake --build build --target create-package    # 打包 zip
+### Windows（MSVC x64）
+
+需要 Visual Studio 或 Build Tools 的 **C++ 桌面开发**工作负载、Windows SDK、CMake 3.24 或更新版本，以及与 MSVC x64 匹配的 Qt 5.14/5.15（包括 Quick Controls 2、Quick Widgets、SVG）。首次构建若没有本地或系统 spdlog，需要联网下载；离线时可提供 `third_party/spdlog/include/spdlog/spdlog.h` 或安装 spdlog 的 CMake 包。
+
+在 PowerShell 中将 `QTDIR` 指向 Qt 的编译器目录；例如：
+
+```powershell
+$env:QTDIR = 'C:\Qt\Qt5.14.2\5.14.2\msvc2017_64'
+cmake --preset debug
+cmake --build --preset debug
+cmake --build build\debug --config Debug --target run
+
+cmake --preset release
+cmake --build --preset release
+cmake --build build\release --config Release --target create-package
+# 安装 NSIS 3.03+ 并将 makensis.exe 加入 PATH 后：
+cmake --build build\debug --config Debug --target create-installer
+cmake --build build\release --config Release --target create-installer
 ```
 
-| 内容                     | 路径                                                  |
-| ------------------------ | ----------------------------------------------------- |
-| 可执行文件（QML 已内嵌） | `build/bin/`（Windows 多配置为 `build/bin/Release/`） |
-| zip 安装包               | `build/DOD-D_Serial-0.1.0-<平台>-<架构>.zip`          |
+也可通过 `-DCMAKE_PREFIX_PATH=<Qt目录>` 指定 Qt。切换 Qt、编译器或生成器时，使用新的构建目录，或自行清理对应的旧构建目录后重新配置。构建后 `windeployqt` 将 Qt DLL、插件和 QML 模块复制到可执行文件旁；缺少该工具时配置会报错。
+
+Debug 程序位于 `build\debug\bin\Debug\DOD-D_Serial.exe`，Release 位于 `build\release\bin\Release\DOD-D_Serial.exe`，压缩包位于 `build\release\`。发布到另一台机器时，若 `windeployqt` 提示找不到 VC 运行库，请先安装与目标架构匹配的 Microsoft Visual C++ Redistributable；Debug 构建依赖调试运行库，不适合发布。
+
+Windows 安装程序分别位于 `build\debug\DOD-D_Serial-<版本>-Windows-<架构>-Debug-Setup.exe` 和 `build\release\DOD-D_Serial-<版本>-Windows-<架构>-Release-Setup.exe`。它们使用 NSIS 生成，需要管理员权限安装，并提供独立的安装目录和卸载入口。Release 包含 Qt/QML 依赖和 MSVC 可再分发运行库；**Debug 仅供开发机内部测试，不包含不可再分发的 MSVC 调试运行库，目标机必须安装对应的 Visual Studio C++ 工具集和调试运行库，并将对应架构的 Debug CRT 及 Windows SDK 的 UCRT 调试 DLL 目录加入运行进程的 `PATH`，不能作为发布包**。打包机须安装 NSIS 3.03+，且启动 VS Code 时 `makensis.exe` 应在 `PATH` 中。安装包未签名，Windows 可能提示发布者未知。
+
+**注意**：程序默认尝试连接 `192.168.3.123` 上的 ULX-D 设备，连接成功后会发送频率设置命令。不需要联调时，在运行前设置 `$env:DOD_ULXD_HOST = 'off'`；VS Code 的调试配置中也应相应修改 `DOD_ULXD_HOST`。
+
+### Linux / macOS
+
+```bash
+cmake --preset debug
+cmake --build --preset debug
+cmake --build build/debug --config Debug --target run
+cmake --preset release
+cmake --build --preset release
+cmake --build build/release --config Release --target create-package
+```
 
 ---
 
@@ -216,10 +243,15 @@ cmake --build build --target create-package    # 打包 zip
 
 | 想做的事         | 操作                                              |
 | ---------------- | ------------------------------------------------- |
-| 编译 Debug       | `Ctrl+Shift+B`（默认任务 `cmake: build (debug)`） |
-| 运行 / 调试      | `F5`                                              |
-| 一键打包 Release | `Ctrl+Shift+B` → **打包 Release（一键 zip）**     |
+| 编译 Debug       | `Ctrl+Shift+B`（默认任务 **CMake: 构建 Debug**） |
+| 编译 Release     | 运行任务 → **CMake: 构建 Release** |
+| 运行程序         | 运行任务 → **CMake: 运行 Debug** 或 **CMake: 运行 Release** |
+| 运行 / 调试      | Windows 选择 **Windows / MSVC / Debug** 或 **Windows / MSVC / Release**，然后 `F5` |
+| 一键打包 Release | 运行任务 → **打包 Release（一键 zip）**     |
+| 一键打包 Windows 安装器 | 在“运行和调试”选择 **打包 Windows Debug 安装程序（仅开发机）** 或 **打包 Windows Release 安装程序（发布）**，然后 `F5` |
 | 清理             | 任务 `cmake: distclean`                           |
+
+安装推荐的 CMake Tools 和 C/C++ 扩展，从设置了 `QTDIR` 的环境启动 VS Code；也可以在本机 `CMakeUserPresets.json` 配置 Qt 路径。CMake Tools 选择 `debug` preset，以获得正确的代码补全；Windows 的调试配置会先构建所选的 Debug 或 Release 程序，再启动对应版本，不依赖当前选中的 CMake 启动目标。Release 启用了编译优化，调试信息和断点体验可能不如 Debug。Windows 打包配置会先配置对应版本，再在集成终端运行 CMake 生成安装器，不会启动安装器；也可以通过 `Ctrl+Shift+P` → `Tasks: Run Task` 运行同名任务。改变生成器或 Qt 后需要重新配置旧构建目录。
 
 ---
 
@@ -231,7 +263,7 @@ cmake --build build --target create-package    # 打包 zip
 | macOS   | 打包时 `macdeployqt -qmldir=Qml`      | zip 内含完整 `.app`      |
 | Linux   | 用系统 Qt                             | zip 内仅可执行文件       |
 
-其它：Windows 默认 GUI 子系统（要 `qDebug` 加 `-DDOD_WIN32_CONSOLE=ON`）；QML 必须写版本号（`import QtQuick 2.12`）；qrc 是编译期资源，改 QML 必须重新构建。
+其它：Windows 默认 GUI 子系统（需要控制台可配置 `-DDOD_WIN32_CONSOLE=ON`）；QML 必须写版本号（如 `import QtQuick.Controls 2.14`）；qrc 是编译期资源，改 QML 必须重新构建。
 
 ---
 
@@ -241,7 +273,7 @@ cmake --build build --target create-package    # 打包 zip
 
 | 现象                                                          | 处理                                                                 |
 | ------------------------------------------------------------- | -------------------------------------------------------------------- |
-| `Could not find ... "Qt5"`                                    | 设 `QTDIR`，或装到 `~/Qt5*/*/gcc_64`                                 |
+| `Could not find ... "Qt5"`                                    | 将 `QTDIR` 或 `CMAKE_PREFIX_PATH` 指向与编译器匹配的 Qt 5.14+ 目录 |
 | `Could not find ... Qt5QuickWidgets`                          | 选到了系统 5.12，显式 `-DCMAKE_PREFIX_PATH=~/Qt5.14.2/5.14.2/gcc_64` |
 | `CMakeCache.txt was created by CMake 4.0.1`                   | 删 `build/`，之后只用一种方式构建                                    |
 | `无法解析 ${command:cmake.launchTargetPath}`                  | 先成功 configure + build 一次                                        |
@@ -268,10 +300,10 @@ cmake --build build --target create-package    # 打包 zip
 ## 九、速查表
 
 ```bash
-cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
-cmake --build build -j8
-cmake --build build --target run
-cmake --build build --target create-package
+cmake --preset release
+cmake --build --preset release
+cmake --build build/release --config Release --target run
+cmake --build build/release --config Release --target create-package
 ```
 
 | 想加什么        | 改哪里                                                                            |

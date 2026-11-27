@@ -30,31 +30,97 @@ set(PACKAGE_ZIP "${CMAKE_BINARY_DIR}/${PACKAGE_NAME}.zip")
 
 # ---------------------------------------------------------------- 各平台部署
 if(WIN32)
-  find_program(WINDEPLOYQT_EXECUTABLE windeployqt HINTS "${QT_BIN_DIR}")
-  if(WINDEPLOYQT_EXECUTABLE)
-    # 每次构建后自动把 Qt 运行库部署到 exe 同级目录
-    add_custom_command(
-      TARGET ${PROJECT_NAME}
-      POST_BUILD
-      COMMAND
-        "${WINDEPLOYQT_EXECUTABLE}"
-        $<$<CONFIG:Debug>:--debug>$<$<NOT:$<CONFIG:Debug>>:--release> --qmldir
-        "${PROJECT_SOURCE_DIR}/Qml" --dir "$<TARGET_FILE_DIR:${PROJECT_NAME}>"
-        "$<TARGET_FILE:${PROJECT_NAME}>"
-      COMMENT "windeployqt：部署 Qt 运行库到 $<TARGET_FILE_DIR:${PROJECT_NAME}>"
-      VERBATIM)
-    message(STATUS "Windows: 已找到 windeployqt，构建后自动部署 Qt 运行库")
-  else()
-    message(WARNING "未找到 windeployqt（Qt 安装的 bin 目录：${QT_BIN_DIR}）")
+  set(WINDEPLOYQT_EXECUTABLE "${QT_BIN_DIR}/windeployqt.exe")
+  if(NOT EXISTS "${WINDEPLOYQT_EXECUTABLE}")
+    message(FATAL_ERROR "未找到与所选 Qt 配套的 windeployqt（${QT_BIN_DIR}）")
   endif()
+
+  set(_windeployqt_args
+      $<$<CONFIG:Debug>:--debug>$<$<NOT:$<CONFIG:Debug>>:--release>
+      --qmldir "${PROJECT_SOURCE_DIR}/Qml"
+      --dir "$<TARGET_FILE_DIR:${PROJECT_NAME}>"
+      "$<TARGET_FILE:${PROJECT_NAME}>")
+  add_custom_command(
+    TARGET ${PROJECT_NAME}
+    POST_BUILD
+    COMMAND "${WINDEPLOYQT_EXECUTABLE}" ${_windeployqt_args}
+    COMMENT "windeployqt：部署 Qt 运行库到 $<TARGET_FILE_DIR:${PROJECT_NAME}>"
+    VERBATIM)
 
   add_custom_target(
     deploy-qt
+    COMMAND "${WINDEPLOYQT_EXECUTABLE}" ${_windeployqt_args}
     DEPENDS ${PROJECT_NAME}
-    COMMENT "Qt 运行库已在构建时由 windeployqt 部署")
+    COMMENT "windeployqt：部署 Qt 运行库"
+    VERBATIM)
 
   set(_pkg_src_dir "$<TARGET_FILE_DIR:${PROJECT_NAME}>")
   set(_pkg_zip_item ".")
+
+  install(TARGETS ${PROJECT_NAME} RUNTIME DESTINATION bin)
+  install(DIRECTORY "${PROJECT_SOURCE_DIR}/Qml/res/" DESTINATION bin/res)
+  install(CODE "
+    if(CMAKE_INSTALL_CONFIG_NAME STREQUAL \"Debug\")
+      set(deploy_mode --debug)
+    elseif(CMAKE_INSTALL_CONFIG_NAME STREQUAL \"Release\")
+      set(deploy_mode --release)
+    else()
+      message(FATAL_ERROR \"Windows 安装包仅支持 Debug 或 Release 构建\")
+    endif()
+    execute_process(
+      COMMAND \"${WINDEPLOYQT_EXECUTABLE}\" \${deploy_mode} --no-compiler-runtime
+              --qmldir \"${PROJECT_SOURCE_DIR}/Qml\"
+              --dir \"\$ENV{DESTDIR}\${CMAKE_INSTALL_PREFIX}/bin\"
+              \"\$ENV{DESTDIR}\${CMAKE_INSTALL_PREFIX}/bin/$<TARGET_FILE_NAME:${PROJECT_NAME}>\"
+      RESULT_VARIABLE deploy_result)
+    if(NOT deploy_result EQUAL 0)
+      message(FATAL_ERROR \"windeployqt 失败: \${deploy_result}\")
+    endif()
+  ")
+
+  if(MSVC)
+    set(CMAKE_INSTALL_SYSTEM_RUNTIME_LIBS_SKIP TRUE)
+    include(InstallRequiredSystemLibraries)
+    if(CMAKE_INSTALL_SYSTEM_RUNTIME_LIBS)
+      install(PROGRAMS ${CMAKE_INSTALL_SYSTEM_RUNTIME_LIBS}
+              DESTINATION bin CONFIGURATIONS Release)
+    else()
+      install(CODE "
+        if(CMAKE_INSTALL_CONFIG_NAME STREQUAL \"Release\")
+          message(FATAL_ERROR \"找不到 MSVC 可再分发运行库，请安装对应的 Visual C++ 工具集\")
+        endif()
+      ")
+    endif()
+  else()
+    install(CODE "message(FATAL_ERROR \"Windows 安装包目前只支持 MSVC 构建\")")
+  endif()
+
+  set(CPACK_PACKAGE_NAME "${PROJECT_NAME}")
+  set(CPACK_PACKAGE_VENDOR "${PROJECT_NAME}")
+  set(CPACK_PACKAGE_INSTALL_DIRECTORY "${PROJECT_NAME}")
+  set(CPACK_PACKAGE_FILE_NAME "${PACKAGE_NAME}-Setup")
+  set(CPACK_PACKAGE_EXECUTABLES "${PROJECT_NAME}" "${PROJECT_NAME}")
+  include(CPack)
+
+  if(CMAKE_SIZEOF_VOID_P EQUAL 8)
+    set(_installer_generator NSIS64)
+  else()
+    set(_installer_generator NSIS)
+  endif()
+  add_custom_target(
+    create-installer
+    COMMAND "${CMAKE_CPACK_COMMAND}" -G "${_installer_generator}" -C "$<CONFIG>"
+            --config "${CMAKE_BINARY_DIR}/CPackConfig.cmake"
+            -D "CPACK_PACKAGE_FILE_NAME=${PACKAGE_NAME}-$<CONFIG>-Setup"
+            -D "CPACK_PACKAGE_INSTALL_DIRECTORY=${PROJECT_NAME}$<$<CONFIG:Debug>:-Debug>"
+            -D "CPACK_PACKAGE_INSTALL_REGISTRY_KEY=${PROJECT_NAME}$<$<CONFIG:Debug>:-Debug>"
+            -D "CPACK_NSIS_DISPLAY_NAME=${PROJECT_NAME} $<CONFIG>"
+            -D "CPACK_NSIS_PACKAGE_NAME=${PROJECT_NAME} $<CONFIG>"
+            -B "${CMAKE_BINARY_DIR}"
+    DEPENDS ${PROJECT_NAME}
+    USES_TERMINAL
+    COMMENT "生成 Windows $<CONFIG> 安装程序"
+    VERBATIM)
 
 elseif(APPLE)
   find_program(MACDEPLOYQT_EXECUTABLE macdeployqt HINTS "${QT_BIN_DIR}")

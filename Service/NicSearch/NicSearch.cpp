@@ -18,6 +18,8 @@
 #include <QTimer>
 #include <QVariantMap>
 
+#include <algorithm>
+
 namespace
 {
     // 快照里的单条记录：影响「网卡是否变化」的字段都算进去
@@ -134,7 +136,8 @@ void NicSearch::scan()
         list.append(item);
     }
 
-    if (snapshot == m_snapshot) {
+    // Qt 5.14's QList equality uses an iterator removed in MSVC 14.51.
+    if (std::equal(snapshot.cbegin(), snapshot.cend(), m_snapshot.cbegin(), m_snapshot.cend())) {
         return; // 没变化就不打扰 QML，避免无意义的界面重绘
     }
 
