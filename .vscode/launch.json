@@ -10,6 +10,11 @@
       "cwd": "${command:cmake.launchTargetDirectory}",
       "stopAtEntry": false,
       "externalConsole": false,
+      "environment": [
+        { "name": "DOD_ULXD_HOST", "value": "192.168.3.123" },
+        { "name": "DOD_ULXD_FREQ", "value": "630000" },
+        { "name": "DOD_ULXD_CHANNEL", "value": "1" }
+      ],
       "MIMode": "gdb",
       "miDebuggerPath": "/usr/bin/gdb",
       "setupCommands": [
@@ -35,6 +40,11 @@
       "cwd": "${command:cmake.launchTargetDirectory}",
       "stopAtEntry": false,
       "externalConsole": false,
+      "environment": [
+        { "name": "DOD_ULXD_HOST", "value": "192.168.3.123" },
+        { "name": "DOD_ULXD_FREQ", "value": "630000" },
+        { "name": "DOD_ULXD_CHANNEL", "value": "1" }
+      ],
       "MIMode": "lldb",
       "preLaunchTask": "cmake: build (debug)"
     },
@@ -46,6 +56,11 @@
       "args": [],
       "cwd": "${command:cmake.launchTargetDirectory}",
       "console": "integratedTerminal",
+      "env": {
+        "DOD_ULXD_HOST": "192.168.3.123",
+        "DOD_ULXD_FREQ": "630000",
+        "DOD_ULXD_CHANNEL": "1"
+      },
       "preLaunchTask": "cmake: build (debug)"
     }
   ]

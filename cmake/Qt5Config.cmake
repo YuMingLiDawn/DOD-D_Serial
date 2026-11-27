@@ -26,6 +26,7 @@ if(_qt_guessed_dirs)
   list(APPEND CMAKE_PREFIX_PATH ${_qt_guessed_dirs})
 endif()
 
-find_package(Qt5 5.12 REQUIRED COMPONENTS Core Widgets Quick QuickWidgets Svg)
+find_package(Qt5 5.12 REQUIRED COMPONENTS Core Widgets Quick QuickWidgets Svg
+                                          Network)
 
 message(STATUS "已找到 Qt ${Qt5_VERSION}（${Qt5_DIR}）")

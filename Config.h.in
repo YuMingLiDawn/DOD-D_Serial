@@ -1,0 +1,49 @@
+/*
+ * @Author: dawn 1964173012@qq.com
+ * @Date: 2025-06-04 08:37:01
+ * @LastEditors: dawn 1964173012@qq.com
+ * @LastEditTime: 2026-09-09 14:20:54
+ * @Description:
+ */
+/*
+ * This file is part of the PulseView project.
+ * WTC3View is based on PulseView.
+ *
+ * Copyright (C) 2012 Alexandru Gagniuc <mr.nuke.me@gmail.com>
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
+#ifndef APPVERSION_H
+#define APPVERSION_H
+
+/* Application details（CMake 变量） */
+#define TITLE "@TITLE@"
+#define DESCRIPTION "@DESCRIPTION@"
+#define BIN_NAME "@BIN_NAME@"
+#define PROJECT_NAME "@PROJECT_NAME@"
+
+/* 版本信息：主/次/修订来自 project(VERSION)，第 4 位是 git 提交次数 */
+#define VERSION_MAJOR @VERSION_MAJOR@
+#define VERSION_MINOR @VERSION_MINOR@
+#define VERSION_MICRO @VERSION_MICRO@
+#define VERSION_BUILD @VERSION_BUILD@
+#define VERSION_STRING "@VERSION_STRING@"
+
+/* 每次编译重新探测：git 提交号 / 分支 / 构建时间 */
+#define GIT_COMMIT_HASH "@GIT_COMMIT_HASH@"
+#define GIT_BRANCH "@GIT_BRANCH@"
+#define BUILD_TIME "@BUILD_TIME@"
+
+#endif

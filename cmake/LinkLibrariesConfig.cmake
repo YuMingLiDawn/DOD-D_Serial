@@ -10,5 +10,6 @@ target_link_libraries(
           Qt5::Quick
           Qt5::QuickWidgets
           Qt5::Svg # ImageColorizer 渲染/着色 SVG 用
+          Qt5::Network # ULX-D 协议（TCP 2202）
           ${DOD_SPDLOG_TARGET}
           Threads::Threads)

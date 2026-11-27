@@ -9,6 +9,9 @@ CMakeFiles/
 CMakeCache.txt
 compile_commands.json
 
+# CMake 生成的版本头（模板是 Config.h.in，不要提交生成物）
+/Config.h
+
 # IDE / 本机
 .vs/
 .vscode/ipch/

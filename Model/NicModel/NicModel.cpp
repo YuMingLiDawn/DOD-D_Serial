@@ -35,7 +35,7 @@ QHash<int, QByteArray> NicModel::roleNames() const
 int NicModel::rowCount(const QModelIndex& parent) const
 {
     Q_UNUSED(parent);
-    return m_nics.size(); // Replace with actual row count
+    return m_nics.size();
 }
 
 QVariant NicModel::data(const QModelIndex& index, int role) const

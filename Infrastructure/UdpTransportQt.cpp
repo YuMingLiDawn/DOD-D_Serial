@@ -10,7 +10,40 @@
  */
 
 #include "UdpTransportQt.h"
-#include "Service/Logger/GoogleLogger.h"
+
+#include "Log.h"
+
+#include <QNetworkAddressEntry>
+#include <QNetworkInterface>
+
+namespace
+{
+    // docker/veth/br-* 这类虚拟网卡加入组播没有意义，还会刷一堆告警
+    bool isVirtualInterface(const QNetworkInterface& iface)
+    {
+        static const QStringList kPrefixes{QStringLiteral("docker"),  QStringLiteral("br-"), QStringLiteral("veth"),  QStringLiteral("virbr"), QStringLiteral("vmnet"),
+                                           QStringLiteral("vboxnet"), QStringLiteral("tun"), QStringLiteral("tap"),   QStringLiteral("lo"),    QStringLiteral("utun"),
+                                           QStringLiteral("awdl"),    QStringLiteral("llw"), QStringLiteral("bridge")};
+
+        const QString name = iface.name();
+        for (const QString& prefix : kPrefixes) {
+            if (name.startsWith(prefix, Qt::CaseInsensitive)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    bool hasIpv4(const QNetworkInterface& iface)
+    {
+        for (const QNetworkAddressEntry& entry : iface.addressEntries()) {
+            if (entry.ip().protocol() == QAbstractSocket::IPv4Protocol) {
+                return true;
+            }
+        }
+        return false;
+    }
+} // namespace
 UdpTransportQt::UdpTransportQt()
 {}
 
@@ -31,10 +64,36 @@ bool UdpTransportQt::bind(quint16 port)
 
     auto socket = std::make_unique<QUdpSocket>();
     if (!socket->bind(QHostAddress::AnyIPv4, port, QUdpSocket::ShareAddress | QUdpSocket::ReuseAddressHint)) {
-        LOG(WARNING) << "[Udp] bind receive socket on port " << port << " failed: " << socket->errorString().toStdString();
+        LOG_WARN("[Udp] bind 接收 socket 失败 port={}: {}", port, socket->errorString());
         return false;
     }
 
+    m_sockets.emplace(port, std::move(socket));
+    return true;
+}
+
+bool UdpTransportQt::bind(const QString& localIp, quint16 port)
+{
+    if (localIp.isEmpty()) {
+        return bind(port); // 空串 = 绑定 0.0.0.0
+    }
+    if (m_sockets.find(port) != m_sockets.end()) {
+        return true;
+    }
+
+    const QHostAddress address(localIp);
+    if (address.isNull() || address.protocol() != QAbstractSocket::IPv4Protocol) {
+        LOG_WARN("[Udp] 绑定 IP 无效: {}", localIp);
+        return false;
+    }
+
+    auto socket = std::make_unique<QUdpSocket>();
+    if (!socket->bind(address, port, QUdpSocket::ShareAddress | QUdpSocket::ReuseAddressHint)) {
+        LOG_WARN("[Udp] bind 接收 socket 失败 {0}:{1}: {2}", localIp, port, socket->errorString());
+        return false;
+    }
+
+    LOG_INFO("[Udp] 接收 socket 已绑定 {0}:{1}", localIp, port);
     m_sockets.emplace(port, std::move(socket));
     return true;
 }
@@ -48,7 +107,7 @@ void UdpTransportQt::setLocalAddress(const QString& ipv4)
     m_localAddress = ipv4;
     // 网卡变了：旧发送 socket 的源地址已经不对，全部丢弃，下次发送时按新地址重建
     resetSendSockets();
-    LOG(INFO) << "[Udp] egress NIC switched to " << (ipv4.isEmpty() ? std::string("<any>") : ipv4.toStdString());
+    LOG_INFO("[Udp] 发送出口网卡切换为 {}", ipv4.isEmpty() ? QStringLiteral("<any>") : ipv4);
 }
 
 void UdpTransportQt::resetSendSockets()
@@ -80,12 +139,12 @@ QUdpSocket* UdpTransportQt::ensureSendSocket(quint16 localBindPort)
     auto socket = std::make_unique<QUdpSocket>();
     // 关键：源地址绑到选中网卡，端口与接收 socket 相同（设备按源 IP:端口回包）
     if (!socket->bind(localAddress, localBindPort, QUdpSocket::ShareAddress | QUdpSocket::ReuseAddressHint)) {
-        LOG(WARNING) << "[Udp] bind send socket " << m_localAddress.toStdString() << ":" << localBindPort << " failed: " << socket->errorString().toStdString() << ", fallback to 0.0.0.0 socket";
+        LOG_WARN("[Udp] bind 发送 socket 失败 {0}:{1}（{2}），回退到 0.0.0.0 socket", m_localAddress, localBindPort, socket->errorString());
         m_sendSocketFailed.insert(localBindPort);
         return nullptr;
     }
 
-    LOG(INFO) << "[Udp] send socket bound to NIC " << m_localAddress.toStdString() << ":" << localBindPort;
+    LOG_INFO("[Udp] 发送 socket 已绑定网卡 {0}:{1}", m_localAddress, localBindPort);
     QUdpSocket* raw = socket.get();
     m_sendSockets.emplace(localBindPort, std::move(socket));
     return raw;
@@ -95,7 +154,7 @@ bool UdpTransportQt::writeDatagram(quint16 localBindPort, const QString& ip, qui
 {
     auto it = m_sockets.find(localBindPort);
     if (it == m_sockets.end()) {
-        DLOG(WARNING) << "No socket available to send data.";
+        LOG_WARN("[Udp] 没有可用 socket 发送数据（端口 {} 未 bind）", localBindPort);
         return false;
     }
 
@@ -107,22 +166,83 @@ bool UdpTransportQt::writeDatagram(quint16 localBindPort, const QString& ip, qui
 
     const QHostAddress address(ip);
     if (address.isNull()) {
-        LOG(WARNING) << "[Udp] invalid destination ip=" << ip.toStdString() << " port=" << port;
+        LOG_WARN("[Udp] 目标地址无效 ip={} port={}", ip, port);
         return false;
     }
 
     const qint64 bytesSent = socket->writeDatagram(data, address, port);
     if (bytesSent != data.size()) {
-        LOG(WARNING) << "[Udp] send to " << ip.toStdString() << ":" << port << " failed, error=" << socket->errorString().toStdString() << " localAddress=" << m_localAddress.toStdString();
+        LOG_WARN("[Udp] 发送失败 to {0}:{1}，error={2} localAddress={3}", ip, port, socket->errorString(), m_localAddress);
         return false;
     }
     return true;
 }
 
+bool UdpTransportQt::joinMulticastGroup(const QString& group, quint16 port, const QString& ifaceName)
+{
+    auto it = m_sockets.find(port);
+    if (it == m_sockets.end()) {
+        LOG_WARN("[Udp] 加入组播前必须先 bind 端口 {}（组播 {}）", port, group);
+        return false;
+    }
+
+    const QHostAddress groupAddress(group);
+    if (groupAddress.isNull()) {
+        LOG_WARN("[Udp] 组播地址无效: {}", group);
+        return false;
+    }
+
+    QUdpSocket* socket = it->second.get();
+
+    QList<QNetworkInterface> ifaces;
+    if (!ifaceName.isEmpty()) {
+        const QNetworkInterface iface = QNetworkInterface::interfaceFromName(ifaceName);
+        if (!iface.isValid()) {
+            LOG_WARN("[Udp] 找不到网卡: {}", ifaceName);
+            return false;
+        }
+        ifaces << iface;
+    }
+    else {
+        for (const QNetworkInterface& iface : QNetworkInterface::allInterfaces()) {
+            const auto flags = iface.flags();
+            if (!flags.testFlag(QNetworkInterface::IsUp) || flags.testFlag(QNetworkInterface::IsLoopBack)) {
+                continue;
+            }
+            if (isVirtualInterface(iface) || !hasIpv4(iface)) {
+                continue; // docker/veth/无 IPv4 的网卡不参与组播
+            }
+            ifaces << iface;
+        }
+    }
+
+    bool joined = false;
+    for (const QNetworkInterface& iface : ifaces) {
+        if (socket->joinMulticastGroup(groupAddress, iface)) {
+            joined = true;
+            LOG_INFO("[Udp] 已在网卡 {}（{}）上加入组播 {}", iface.humanReadableName(), iface.name(), group);
+        }
+        else {
+            LOG_WARN("[Udp] 网卡 {} 加入组播 {} 失败: {}", iface.name(), group, socket->errorString());
+        }
+    }
+
+    if (!joined && socket->joinMulticastGroup(groupAddress)) {
+        joined = true;
+        LOG_WARN("[Udp] 各网卡均未加入成功，已用默认网卡加入组播 {}", group);
+    }
+
+    // 本机发送的组播也能收到，方便自测
+    if (joined) {
+        socket->setSocketOption(QAbstractSocket::MulticastLoopbackOption, 1);
+    }
+    return joined;
+}
+
 bool UdpTransportQt::sendTo(const QString& ip, quint16 port, const QByteArray& data)
 {
     if (m_sockets.empty()) {
-        DLOG(WARNING) << "No socket available to send data.";
+        LOG_WARN("[Udp] 没有可用 socket 发送数据（尚未 bind 任何端口）");
         return false;
     }
 
@@ -132,7 +252,6 @@ bool UdpTransportQt::sendTo(const QString& ip, quint16 port, const QByteArray& d
 bool UdpTransportQt::sendTo(quint16 localBindPort, const QString& ip, quint16 port, const QByteArray& data)
 {
     if (m_sockets.empty()) {
-        DLOG(WARNING) << "No socket available to send data.";
         return false;
     }
 
@@ -167,8 +286,6 @@ bool UdpTransportQt::tryReceiveFrom(quint16 port, QByteArray& data, QString& sen
     data.resize(static_cast<int>(read));
     senderIp   = host.toString();
     senderPort = portFrom;
-    DLOG(INFO) << "<<<<<< UDP RX " << senderIp.toStdString() << ":" << senderPort << " len=" << read << " hex=" << data.toHex(' ').toStdString()
-               << " str=" << QString(data).replace('\n', "\\n").replace('\r', "\\r").toStdString();
     return true;
 }
 
@@ -225,10 +342,7 @@ void UdpTransportQt::drainSocket(QUdpSocket* socket, const std::function<void(co
 
         QString senderIp   = host.toString();
         quint16 senderPort = portFrom;
-#if defined(DEBUG)
-        DLOG(INFO) << "<<<<<< UDP 收到数据 " << senderIp.toStdString() << ":" << senderPort << " len=" << read << " hex=" << data.toHex(' ').toStdString()
-                   << " str=" << QString(data).replace('\n', "\\n").replace('\r', "\\r").toStdString();
-#endif
+
         callback(data, senderIp, senderPort);
     }
 }

@@ -10,10 +10,13 @@
  */
 #include "AmsApplication.h"
 #include "ApplicationContext.h"
+#include "Config.h" // 由 CMake 每次编译生成：版本 / git / 构建时间
 #include "Log.h"
-#include "SerialService.h"
 #include "Model/NicModel/NicModel.h"
 #include "Service/NicSearch/NicSearch.h"
+#include "Service/UdpReceiver/UdpReceiver.h"
+#include "Ulxd/UlxdClient.h"
+#include "Ulxd/UlxdCommands.h"
 
 #include <QApplication>
 #include <QSysInfo>
@@ -22,26 +25,14 @@
 
 namespace
 {
-    // 1) 注册 QML 类型：Model / 可实例化组件，QML 里用 SerialPortModel { }
     void registerQmlTypes()
     {
-        // 命名空间 DodModel，版本 1.0；QML 侧 import DodModel 1.0
-         qmlRegisterType<NicModel>("DodModel", 1, 0, "NicModel");
-
-        // 只暴露枚举/常量、不允许 QML 创建时用这两个：
-        //   qmlRegisterUncreatableType<T>("DodModel", 1, 0, "T", "仅用于枚举");
-        //   qmlRegisterUncreatableMetaObject(NS::staticMetaObject, "DodModel", 1, 0, "NS", "仅用于枚举");
+        qmlRegisterType<NicModel>("DodModel", 1, 0, "NicModel");
     }
 
-    // 2) 登记全局服务（单例）：QML 里直接 serialService.xxx
     void setupApplicationContext()
     {
-        ApplicationContext::instance().setContext("serialService", &SerialService::instance());
         ApplicationContext::instance().setContext("nicSearch", &NicSearch::instance());
-
-        // 单例也可以改成「类型」方式注册（QML 里不需注入上下文属性）：
-        //   qmlRegisterSingletonInstance<SerialService>("DodModel", 1, 0, "SerialService",
-        //                                              &SerialService::instance());
     }
 } // namespace
 
@@ -54,7 +45,6 @@ int main(int argc, char* argv[])
 
     QApplication app(argc, argv);
 
-    // 日志初始化必须在其他模块打日志之前；文件落在 <exe目录>/logs/DOD-D_Serial.log
     Log::Options logOptions;
     logOptions.appName      = "DOD-D_Serial";
     logOptions.consoleLevel = Log::Level::Debug;
@@ -63,18 +53,67 @@ int main(int argc, char* argv[])
     Log::installQtMessageHandler();
     LOG_INFO("应用启动: Qt {} | {} | {} {} x {}", QString::fromLatin1(qVersion()), QSysInfo::prettyProductName(), QSysInfo::kernelType(), QSysInfo::currentCpuArchitecture(),
              QSysInfo::buildCpuArchitecture());
+    LOG_INFO("版本 {} | Git {}@{} | 构建于 {}", VERSION_STRING, GIT_BRANCH, GIT_COMMIT_HASH, BUILD_TIME);
 
-    // 必须在创建 QML 引擎之前完成类型注册，否则 QML 里找不到 DodModel
     registerQmlTypes();
     setupApplicationContext();
 
+    UdpReceiver udpReceiver;
+    udpReceiver.startListening();
+    ApplicationContext::instance().setContext("udpReceiver", &udpReceiver);
+
+    // ============================================================================
+    // 【临时联调】设置环境变量 DOD_ULXD_HOST 后，启动即连一次 ULX-D 接收机
+    //   DOD_ULXD_HOST=192.168.3.123   （默认就是它；设为 off 可关闭联调）
+    //   DOD_ULXD_FREQ=550000          （可选，单位 kHz，默认 630000 = 630.000MHz）
+    //   DOD_ULXD_CHANNEL=1            （可选，默认通道 1）
+    // 验证完成后删掉本段即可
+    // ============================================================================
+    Ulxd::Client  ulxdClient; // 必须活得比事件循环久
+    const QString ulxdHost = qEnvironmentVariable("DOD_ULXD_HOST", "192.168.3.123");
+    if (!ulxdHost.isEmpty() && ulxdHost.compare(QStringLiteral("off"), Qt::CaseInsensitive) != 0) {
+        LOG_INFO("[联调] 启用，目标 {}（设 DOD_ULXD_HOST=off 可关闭）", ulxdHost);
+        bool      okChannel   = false;
+        const int envChannel  = qEnvironmentVariableIntValue("DOD_ULXD_CHANNEL", &okChannel);
+        const int ulxdChannel = okChannel ? envChannel : 1;
+
+        bool      okFreq  = false;
+        const int envFreq = qEnvironmentVariableIntValue("DOD_ULXD_FREQ", &okFreq);
+        const int ulxdKhz = okFreq ? envFreq : 630000; // 630000 = 630.000MHz
+
+        QObject::connect(&ulxdClient, &Ulxd::Client::connected, [&ulxdClient, ulxdChannel, ulxdKhz]() {
+            const Ulxd::Message command = Ulxd::Commands::setFrequency(ulxdChannel, ulxdKhz);
+            LOG_INFO("[联调] 发命令: {}", command.toWire());
+            ulxdClient.send(command);
+        });
+        QObject::connect(&ulxdClient, &Ulxd::Client::replyReceived, [](const Ulxd::Message& message) {
+            LOG_INFO("[联调] 收到回执: {}  (param={} channel={} args={})", message.toWire(), message.parameter, message.channel, message.args.join(QStringLiteral(",")));
+        });
+        QObject::connect(&ulxdClient, &Ulxd::Client::messageReceived, [](const Ulxd::Message& message) {
+            LOG_DEBUG("[联调] 帧: {}", message.toWire());
+        });
+        QObject::connect(&ulxdClient, &Ulxd::Client::requestTimeout, [](const Ulxd::Message& message) {
+            LOG_WARN("[联调] 回执超时: {}", message.toWire());
+        });
+        QObject::connect(&ulxdClient, &Ulxd::Client::requestRejected, [](const Ulxd::Message& request) {
+            LOG_WARN("[联调] 设备拒绝: {}（频段不匹配或格式不对）", request.toWire());
+        });
+        QObject::connect(&ulxdClient, &Ulxd::Client::errorOccurred, [](const QString& error) {
+            LOG_WARN("[联调] 连接错误: {}", error);
+        });
+
+        ulxdClient.connectToDevice(ulxdHost, Ulxd::kDefaultTcpPort);
+    }
+
     AmsApplication window;
-    window.setWindowTitle(QStringLiteral("AMS"));
+    QString appTitle = QStringLiteral("WIRELESS TERMINAL CONSOLE") + QStringLiteral(" ") + QStringLiteral("WTC-3") + QStringLiteral(" ") + QStringLiteral("无线终端控制中心");
+    window.setWindowTitle(appTitle);
     window.resize(1280, 800);
     window.show();
 
     const int exitCode = app.exec();
     LOG_INFO("应用退出, code={}", exitCode);
+    udpReceiver.stop();
     Log::shutdown();
     return exitCode;
 }

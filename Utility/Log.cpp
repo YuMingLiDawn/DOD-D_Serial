@@ -1,3 +1,13 @@
+/***
+ * @Author: dawn 1964173012@qq.com
+ * @Date: 2026-11-26 17:16:35
+ * @LastEditors: dawn 1964173012@qq.com
+ * @LastEditTime: 2026-11-27 11:39:31
+ * @FilePath: /DOD-D_Serial/Utility/Log.cpp
+ * @Description:
+ * @
+ * @Copyright (c) 2026 by AmsAudio Li YuMing, All Rights Reserved.
+ */
 #include "Log.h"
 
 // ============================================================================

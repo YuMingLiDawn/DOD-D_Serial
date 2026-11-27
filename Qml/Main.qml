@@ -15,7 +15,7 @@ Rectangle {
 
         Item {
             Layout.fillHeight: true
-            Layout.preferredWidth: parent.width * 0.15
+            Layout.preferredWidth: parent.width * 0.12
 
             ColumnLayout {
                 anchors.fill: parent
