@@ -1,3 +1,4 @@
 module Common
 
 GeneralCombox 1.0 ./GeneralCombox.qml
+GeneralBtn 1.0 ./GeneralBtn.qml
