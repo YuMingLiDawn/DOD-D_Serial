@@ -1,0 +1,8 @@
+<RCC>
+    <qresource prefix="/">
+        <file>Qml/Main.qml</file>
+        <file>Qml/Common/GeneralCombox.qml</file>
+        <file>Qml/Common/GeneralBtn.qml</file>
+        <file>Qml/Common/qmldir</file>
+    </qresource>
+</RCC>

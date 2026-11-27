@@ -22,7 +22,7 @@ AmsApplication::AmsApplication(QWidget* parent)
     m_quickWidget->engine()->addImageProvider(QStringLiteral("customImage"), ImageColorizer::instance());
     injectContextProperties();
 
-    const QUrl qmlUrl(QStringLiteral("qrc:/Main.qml"));
+    const QUrl qmlUrl(QStringLiteral("qrc:/Qml/Main.qml"));
     m_quickWidget->setSource(qmlUrl);
 
     if (m_quickWidget->status() == QQuickWidget::Error) {

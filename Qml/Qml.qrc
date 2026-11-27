@@ -1,7 +1,0 @@
-<RCC>
-    <qresource prefix="/">
-        <file>Main.qml</file>
-        <file>Common/qmldir</file>
-        <file>Common/GeneralCombox.qml</file>
-    </qresource>
-</RCC>

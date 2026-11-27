@@ -10,7 +10,7 @@
  */
 import QtQuick 2.9
 import QtQuick.Controls 2.2
-import Common 1.0
+import Qml.Common 1.0
 
 ComboBox {
     id: root

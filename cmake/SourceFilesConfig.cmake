@@ -33,7 +33,8 @@ set(PROJECT_SOURCES
     Protocol/Ulxd/UlxdCommands.h
     Protocol/Ulxd/UlxdClient.cpp
     Protocol/Ulxd/UlxdClient.h
-    Qml/Qml.qrc)
+    font.qrc
+    qml.qrc)
 
 # 作为跨层 include 根目录，业务里依然写 #include "SerialService.h"
 set(PROJECT_INCLUDE_DIRS

@@ -35,10 +35,10 @@
 #define PROJECT_NAME "@PROJECT_NAME@"
 
 /* 版本信息：主/次/修订来自 project(VERSION)，第 4 位是 git 提交次数 */
-#define VERSION_MAJOR @VERSION_MAJOR@
-#define VERSION_MINOR @VERSION_MINOR@
-#define VERSION_MICRO @VERSION_MICRO@
-#define VERSION_BUILD @VERSION_BUILD@
+#define VERSION_MAJOR @VERSION_MAJOR @
+#define VERSION_MINOR @VERSION_MINOR @
+#define VERSION_MICRO @VERSION_MICRO @
+#define VERSION_BUILD @VERSION_BUILD @
 #define VERSION_STRING "@VERSION_STRING@"
 
 /* 每次编译重新探测：git 提交号 / 分支 / 构建时间 */
