@@ -7,8 +7,21 @@ add_executable(${PROJECT_NAME} ${PROJECT_SOURCES})
 
 target_include_directories(${PROJECT_NAME} PRIVATE ${PROJECT_INCLUDE_DIRS})
 
-# 图标资源（svg/png）： 1) 已作为 Qml/res/* 登记进 qrc → 编进 exe，随 exe 一起被打包； 2) 这里再拷一份到 exe
-# 同级 res/，方便现场替换图标（ImageColorizer 优先读磁盘）。
+# 图标资源（svg/png）：从 Qml/res 拷到 exe 同级 res/，方便现场替换图标 （ImageColorizer 优先读磁盘，找不到才回退
+# qrc）
+#
+# 为什么要 OBJECT_DEPENDS：POST_BUILD 属于「链接步骤」，目标没重新链接（源码没变）时 CMake 认为它是最新的，整条
+# POST_BUILD 会被跳过 —— 表现就是「改/加了 svg 却不会复制」。 把 res 目录下的文件挂到 main.cpp 的依赖上，任何 svg
+# 变化都会让它重编一次 → 重新链接 → POST_BUILD 重新执行。打包目标（create-package）走同一条链，所以包里的 svg 也是新的。
+file(GLOB_RECURSE RES_FILES CONFIGURE_DEPENDS "${PROJECT_SOURCE_DIR}/Qml/res/*")
+
+if(RES_FILES)
+  set_property(
+    SOURCE main.cpp
+    APPEND
+    PROPERTY OBJECT_DEPENDS "${RES_FILES}")
+endif()
+
 add_custom_command(
   TARGET ${PROJECT_NAME}
   POST_BUILD

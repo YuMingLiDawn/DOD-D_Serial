@@ -36,7 +36,7 @@ NicSearch::NicSearch(QObject* parent)
     m_timer->setTimerType(Qt::CoarseTimer); // 2s 级别的轮询不需要精确定时器
     connect(m_timer, &QTimer::timeout, this, &NicSearch::scan);
 
-    scan(); // 先同步扫一次，QML 首屏就有数据
+    // scan(); // 先同步扫一次，QML 首屏就有数据
 }
 
 NicSearch::~NicSearch() = default;
@@ -61,6 +61,29 @@ void NicSearch::setIntervalMs(int intervalMs)
     m_timer->setInterval(m_intervalMs);
     emit intervalMsChanged();
     LOG_INFO("[NicSearch] 轮询间隔改为 {} ms", m_intervalMs);
+}
+
+QVariantList NicSearch::listWiredNics() const
+{
+    QVariantList list;
+    const QVector<NicInfo> current = m_provider->listWiredNics();
+    for (const NicInfo& nic : current) {
+        QVariantMap item;
+        item.insert(QStringLiteral("id"), nic.id);
+        item.insert(QStringLiteral("name"), nic.name);
+        item.insert(QStringLiteral("ipv4"), nic.ipv4);
+        item.insert(QStringLiteral("netmask"), nic.netmask);
+        item.insert(QStringLiteral("mac"), nic.mac);
+        item.insert(QStringLiteral("broadcast"), nic.broadcast);
+        item.insert(QStringLiteral("gateway"), nic.gateway);
+        list.append(item);
+    }
+    return list;
+}
+
+QVector<NicInfo> NicSearch::listWiredNicsRaw() const
+{
+    return m_provider->listWiredNics();
 }
 
 void NicSearch::start()

@@ -19,11 +19,8 @@
 
 class INicProvider;
 class QTimer;
+struct NicInfo;
 
-// 定时轮询网卡列表，只有「真的变了」才通知 QML。
-// QML 用法：
-//     NicSearch { id: nicSearch; Component.onCompleted: start() }
-//     model: nicSearch.nics        // delegate 里用 modelData.name / modelData.ipv4 ...
 class NicSearch : public QObject
 {
     Q_OBJECT
@@ -36,16 +33,21 @@ public:
     {
         return m_nics;
     }
+
     int count() const
     {
         return m_nics.size();
     }
+
     bool isWatching() const;
     int  intervalMs() const
     {
         return m_intervalMs;
     }
     void setIntervalMs(int intervalMs);
+
+    QVariantList listWiredNics() const;
+    QVector<NicInfo> listWiredNicsRaw() const;
 
     void start();   // 开始定时检测
     void stop();    // 停止定时检测（已拿到的数据保留）
